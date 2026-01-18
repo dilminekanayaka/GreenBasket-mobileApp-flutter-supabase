@@ -15,6 +15,7 @@ dependencies:
   flutter_hooks: ^0.21.3+1
   google_fonts: ^6.0.0
   cached_network_image: ^3.4.0
+  image_picker: ^1.0.7
 
   # You can uncomment later if needed:
   # http: ^1.2.2

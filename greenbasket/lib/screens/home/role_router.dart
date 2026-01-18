@@ -23,18 +23,38 @@ class _RoleRouterState extends State<RoleRouter> {
 
   Future<void> _loadRole() async {
     final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.of(context)
+              .pushNamedAndRemoveUntil('/login', (route) => false);
+        });
+      }
+      return;
+    }
 
-    final data = await Supabase.instance.client
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
+    try {
+      final data = await Supabase.instance.client
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
 
-    setState(() {
-      role = data['role'];
-      loading = false;
-    });
+      if (mounted) {
+        setState(() {
+          role = data['role'];
+          loading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading role: $e");
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.of(context)
+              .pushNamedAndRemoveUntil('/login', (route) => false);
+        });
+      }
+    }
   }
 
   @override

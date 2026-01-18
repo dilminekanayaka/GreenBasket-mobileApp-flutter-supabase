@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/shared/splash_screen.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/home/role_router.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,10 +27,20 @@ class MyApp extends StatelessWidget {
       title: 'GreenBasket',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
+        useMaterial3: true,
         primarySwatch: Colors.green,
         scaffoldBackgroundColor: const Color(0xFFEFF5E8),
+        fontFamily: GoogleFonts.poppins().fontFamily,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF4CAF50),
+          brightness: Brightness.light,
+        ),
       ),
       home: const SplashScreen(),
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/role-router': (context) => const RoleRouter(),
+      },
     );
   }
 }
