@@ -8,11 +8,11 @@
 
 | Splash Screen | Create Account | Buyer Homepage |
 | :---: | :---: | :---: |
-| ![Splash Screen](assets/images/SplashScreen.jpg) | ![Create Account](assets/images/CreateAccount.jpg) | ![Buyer Homepage](assets/images/BuyerHomepage.jpg) |
+| ![Splash Screen](greenbasket/assets/images/SplashScreen.jpg) | ![Create Account](greenbasket/assets/images/CreateAccount.jpg) | ![Buyer Homepage](greenbasket/assets/images/BuyerHomepage.jpg) |
 
 | Farmer Dashboard | Track Order |
 | :---: | :---: |
-| ![Farmer Dashboard](assets/images/FarmerDashboard.jpg) | ![Track Order](assets/images/TrackOrder.jpg) |
+| ![Farmer Dashboard](greenbasket/assets/images/FarmerDashboard.jpg) | ![Track Order](greenbasket/assets/images/TrackOrder.jpg) |
 
 ---
 
