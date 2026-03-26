@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'farmer_dashboard.dart';
 import 'buyer_dashboard.dart';
+import '../../services/cart_service.dart';
+import '../../services/wishlist_service.dart';
 
 class RoleRouter extends StatefulWidget {
   const RoleRouter({super.key});
@@ -41,6 +43,10 @@ class _RoleRouterState extends State<RoleRouter> {
           .single();
 
       if (mounted) {
+        // Initialize user services
+        CartService().setUser(user.id);
+        WishlistService().setUser(user.id);
+
         setState(() {
           role = data['role'];
           loading = false;

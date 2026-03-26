@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../auth/login_screen.dart';
 import '../home/role_router.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
@@ -10,14 +11,26 @@ class RoleSelectionScreen extends StatelessWidget {
 
     if (user == null) return;
 
+    // 1. Create Profile
     await Supabase.instance.client.from('profiles').insert({
       'id': user.id,
       'role': role,
+      'full_name': user.userMetadata?['full_name'],
     });
 
+    // 2. Sign Out
+    await Supabase.instance.client.auth.signOut();
+
+    if (!context.mounted) return;
+
+    // 3. Navigate to Login with Message
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const RoleRouter()),
+      MaterialPageRoute(
+        builder: (_) => const LoginScreen(
+          message: "Role selected successfully! Please login to your account.",
+        ),
+      ),
       (_) => false,
     );
   }

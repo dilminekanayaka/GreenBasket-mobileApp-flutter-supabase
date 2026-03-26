@@ -91,43 +91,41 @@ class _FarmerProductsPageState extends State<FarmerProductsPage>
     }).toList();
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F9F5),
-      body: SafeArea(
-        child: Column(
-          children: [
-            /// HEADER
-            _buildHeader(context),
+      body: Column(
+        children: [
+          /// HEADER
+          _buildHeader(context),
 
-            /// SEARCH & FILTERS
-            _buildSearchAndFilters(context),
+          /// SEARCH & FILTERS
+          _buildSearchAndFilters(context),
 
-            /// CATEGORY CHIPS
-            _buildCategoryChips(context),
+          /// CATEGORY CHIPS
+          _buildCategoryChips(context),
 
-            /// PRODUCT LIST/GRID
-            Expanded(
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: _isLoading
-                    ? const Center(
-                        child:
-                            CircularProgressIndicator(color: Color(0xFF4CAF50)))
-                    : _filteredProducts.isEmpty
-                        ? _buildEmptyState(context)
-                        : RefreshIndicator(
-                            onRefresh: _handleRefresh,
-                            color: const Color(0xFF4CAF50),
-                            child: _isGridView
-                                ? _buildGridView()
-                                : _buildListView(),
-                          ),
-              ),
+          /// PRODUCT LIST/GRID
+          Expanded(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: _isLoading
+                  ? const Center(
+                      child:
+                          CircularProgressIndicator(color: Color(0xFF4CAF50)))
+                  : _filteredProducts.isEmpty
+                      ? _buildEmptyState(context)
+                      : RefreshIndicator(
+                          onRefresh: _handleRefresh,
+                          color: const Color(0xFF4CAF50),
+                          child: _isGridView
+                              ? _buildGridView()
+                              : _buildListView(),
+                        ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
 
       /// FLOATING ACTION BUTTON
@@ -140,7 +138,12 @@ class _FarmerProductsPageState extends State<FarmerProductsPage>
 
   Widget _buildHeader(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 20,
+        left: 20,
+        right: 20,
+        bottom: 20,
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -504,15 +507,12 @@ class _FarmerProductsPageState extends State<FarmerProductsPage>
   }
 
   void _editProduct(Map<String, dynamic> product) {
-    // TODO: Navigate to edit product page
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Edit ${product['name']}'),
-        backgroundColor: const Color(0xFF2196F3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddProductPage(product: product),
       ),
-    );
+    ).then((_) => _handleRefresh());
   }
 
   void _showProductDetails(Map<String, dynamic> product) {
@@ -520,7 +520,88 @@ class _FarmerProductsPageState extends State<FarmerProductsPage>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _ProductDetailsSheet(product: product),
+      builder: (context) => _ProductDetailsSheet(
+        product: product,
+        onEdit: () {
+          Navigator.pop(context);
+          _editProduct(product);
+        },
+        onDelete: () {
+          Navigator.pop(context);
+          _showDeleteConfirmation(product);
+        },
+      ),
+    );
+  }
+
+  Future<void> _deleteProduct(String productId) async {
+    setState(() => _isLoading = true);
+    try {
+      await Supabase.instance.client
+          .from('products')
+          .delete()
+          .eq('id', productId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: const [
+                Icon(Icons.delete_sweep, color: Colors.white),
+                SizedBox(width: 12),
+                Text('Product deleted successfully'),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+        _handleRefresh();
+      }
+    } catch (e) {
+      debugPrint("Error deleting product: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error deleting product: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showDeleteConfirmation(Map<String, dynamic> product) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Product?'),
+        content: Text('Are you sure you want to delete ${product['name']}? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[600])),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteProduct(product['id']);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -960,157 +1041,194 @@ class _ProductListCard extends StatelessWidget {
 
 class _ProductDetailsSheet extends StatelessWidget {
   final Map<String, dynamic> product;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
-  const _ProductDetailsSheet({required this.product});
+  const _ProductDetailsSheet({
+    required this.product,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(32),
+          topRight: Radius.circular(32),
+        ),
       ),
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.9,
-        builder: (context, scrollController) {
-          return SingleChildScrollView(
-            controller: scrollController,
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Drag handle
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Image
-                  ClipRRect(
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Header with Image and Title
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
-                    child: product['image_url'] != null
-                        ? Image.network(
-                            product['image_url'],
-                            width: double.infinity,
-                            height: 250,
-                            fit: BoxFit.cover,
-                          )
-                        : Container(
-                            width: double.infinity,
-                            height: 250,
-                            color: Colors.grey[200],
-                            child: const Icon(Icons.image_outlined,
-                                size: 80, color: Colors.grey),
-                          ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Title
-                  Text(
-                    product['name'],
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1B5E20),
+                    image: DecorationImage(
+                      image: NetworkImage(product['image_url'] ?? ''),
+                      fit: BoxFit.cover,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Category
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4CAF50).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      product['category'],
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF4CAF50),
-                        fontWeight: FontWeight.w600,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(height: 24),
-                  // Details
-                  _DetailRow(
-                    icon: Icons.attach_money,
-                    label: 'Price',
-                    value: 'Rs ${product['price']}/${product['unit']}',
-                  ),
-                  const SizedBox(height: 16),
-                  _DetailRow(
-                    icon: Icons.inventory_2_outlined,
-                    label: 'Stock',
-                    value: '${product['stock']} ${product['unit']}',
-                  ),
-                  const SizedBox(height: 16),
-                  _DetailRow(
-                    icon: Icons.check_circle_outline,
-                    label: 'Status',
-                    value: (product['is_available'] ?? true)
-                        ? 'Available'
-                        : 'Out of Stock',
-                  ),
-                  const SizedBox(height: 32),
-                  // Actions
-                  Row(
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            // Edit product
-                          },
-                          icon: const Icon(Icons.edit),
-                          label: const Text('Edit'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF4CAF50),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4CAF50).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          product['category'],
+                          style: const TextStyle(
+                            color: Color(0xFF4CAF50),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            // Delete product
-                          },
-                          icon: const Icon(Icons.delete_outline),
-                          label: const Text('Delete'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red,
-                            side: const BorderSide(color: Colors.red),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
+                      const SizedBox(height: 8),
+                      Text(
+                        product['name'],
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1B5E20),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Rs. ${product['price']} / ${product['unit']}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          color: Color(0xFF4CAF50),
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
                   ),
-                ],
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
+
+            // Quick Stats
+            Row(
+              children: [
+                _StatItem(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'In Stock',
+                  value: '${product['stock']} ${product['unit']}',
+                  color: Colors.blue,
+                ),
+                const SizedBox(width: 16),
+                _StatItem(
+                  icon: Icons.eco_outlined,
+                  label: 'Growing Method',
+                  value: product['is_organic'] == true ? 'Organic' : 'Standard',
+                  color: Colors.orange,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
+
+            const Text(
+              'Description',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1B5E20),
               ),
             ),
-          );
-        },
+            const SizedBox(height: 12),
+            Text(
+              product['description'] ?? 'No description provided.',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[700],
+                height: 1.5,
+              ),
+            ),
+
+            const SizedBox(height: 40),
+
+            // Actions
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onEdit,
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Edit Product'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: const BorderSide(color: Color(0xFF4CAF50)),
+                      foregroundColor: const Color(0xFF4CAF50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Delete'),
+                    style: ElevatedButton.styleFrom(
+                      elevation: 0,
+                      backgroundColor: Colors.red[50],
+                      foregroundColor: Colors.red[700],
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
     );
   }
@@ -1215,6 +1333,57 @@ class _NavItem extends StatelessWidget {
                 fontSize: 12,
                 color: color,
                 fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+class _StatItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _StatItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.1)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 12),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
               ),
             ),
           ],

@@ -3,8 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../farmer/products_page.dart';
 import '../farmer/add_product_page.dart';
+import '../auth/login_screen.dart';
 import '../farmer/orders_page.dart';
 import '../farmer/profile_page.dart';
+import '../farmer/help_support_page.dart';
+import '../farmer/recent_activity_page.dart';
+import '../farmer/analytics_page.dart';
+import '../farmer/about_page.dart';
+import '../../services/cart_service.dart';
+import '../../services/wishlist_service.dart';
 
 class FarmerDashboard extends StatefulWidget {
   const FarmerDashboard({super.key});
@@ -77,19 +84,33 @@ class _FarmerDashboardState extends State<FarmerDashboard>
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
+    debugPrint("🔄 Setting up Dashboard Realtime Listeners for ${user.id}");
+
     // Listen for product changes - silent refresh
     _productsSubscription = Supabase.instance.client
         .from('products')
         .stream(primaryKey: ['id'])
         .eq('farmer_id', user.id)
-        .listen((_) => _loadDashboardStats(isInitial: false));
+        .listen(
+          (data) {
+            debugPrint("📦 Realtime Update: Products changed (${data.length} items)");
+            _loadDashboardStats(isInitial: false);
+          },
+          onError: (error) => debugPrint("❌ Products Stream Error: $error"),
+        );
 
     // Listen for order changes - silent refresh
     _ordersSubscription = Supabase.instance.client
         .from('orders')
         .stream(primaryKey: ['id'])
         .eq('farmer_id', user.id)
-        .listen((_) => _loadDashboardStats(isInitial: false));
+        .listen(
+          (data) {
+            debugPrint("🛍️ Realtime Update: Orders changed (${data.length} items)");
+            _loadDashboardStats(isInitial: false);
+          },
+          onError: (error) => debugPrint("❌ Orders Stream Error: $error"),
+        );
   }
 
   Future<void> _loadDashboardStats({bool isInitial = false}) async {
@@ -640,11 +661,6 @@ class _FarmerDashboardState extends State<FarmerDashboard>
                   },
                 ),
                 _buildDrawerItem(
-                  icon: Icons.analytics_rounded,
-                  label: 'Sales Analytics',
-                  onTap: () {},
-                ),
-                _buildDrawerItem(
                   icon: Icons.store_rounded,
                   label: 'My Shop Profile',
                   onTap: () {
@@ -661,17 +677,41 @@ class _FarmerDashboardState extends State<FarmerDashboard>
                 _buildDrawerItem(
                   icon: Icons.settings_rounded,
                   label: 'Account Settings',
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const FarmerProfilePage(),
+                      ),
+                    );
+                  },
                 ),
                 _buildDrawerItem(
                   icon: Icons.help_outline_rounded,
                   label: 'Help & Support',
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const FarmerHelpSupportPage(),
+                      ),
+                    );
+                  },
                 ),
                 _buildDrawerItem(
                   icon: Icons.info_outline_rounded,
                   label: 'About GreenBasket',
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AboutGreenBasketPage(),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -689,7 +729,28 @@ class _FarmerDashboardState extends State<FarmerDashboard>
               child: ListTile(
                 onTap: () async {
                   await Supabase.instance.client.auth.signOut();
-                  // Note: You should handle navigation to login page here or via listener
+                  // Clear user services
+                  CartService().setUser(null);
+                  WishlistService().setUser(null);
+
+                  if (!context.mounted) return;
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content:
+                          const Text("Logged out successfully. See you soon!"),
+                      backgroundColor: const Color(0xFF2E7D32),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                  );
+
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
                 },
                 leading: const Icon(Icons.logout_rounded, color: Colors.red),
                 title: const Text(
@@ -874,7 +935,14 @@ class _FarmerDashboardState extends State<FarmerDashboard>
                 icon: Icons.bar_chart_rounded,
                 label: 'Analytics',
                 gradientColors: [Color(0xFFFF9800), Color(0xFFFFB74D)],
-                onTap: () => _loadDashboardStats(isInitial: true),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const FarmerAnalyticsPage(),
+                    ),
+                  );
+                },
               ),
             ),
             const SizedBox(width: 12),
@@ -883,7 +951,14 @@ class _FarmerDashboardState extends State<FarmerDashboard>
                 icon: Icons.settings_outlined,
                 label: 'Settings',
                 gradientColors: [Color(0xFF9C27B0), Color(0xFFBA68C8)],
-                onTap: () {},
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const FarmerProfilePage(),
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -1067,11 +1142,18 @@ class _FarmerDashboardState extends State<FarmerDashboard>
               ),
             ),
             TextButton(
-              onPressed: () {},
-              child: Text(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const RecentActivityPage(),
+                  ),
+                );
+              },
+              child: const Text(
                 'View All',
                 style: TextStyle(
-                  color: const Color(0xFF4CAF50),
+                  color: Color(0xFF4CAF50),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1101,9 +1183,26 @@ class _FarmerDashboardState extends State<FarmerDashboard>
                 child: _ActivityItem(
                   icon: activity['icon'],
                   title: activity['title'],
-                  subtitle: activity['subtitle'],
+                  subtitle: activity['subtitle'] ?? '',
                   time: _formatActivityTime(activity['time']),
                   iconColor: activity['color'],
+                  onTap: () {
+                    if (activity['type'] == 'order') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const FarmerOrdersPage(),
+                        ),
+                      );
+                    } else if (activity['type'] == 'product') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const FarmerProductsPage(),
+                        ),
+                      );
+                    }
+                  },
                 ),
               )),
       ],
@@ -1386,6 +1485,7 @@ class _ActivityItem extends StatelessWidget {
   final String subtitle;
   final String time;
   final Color iconColor;
+  final VoidCallback? onTap;
 
   const _ActivityItem({
     required this.icon,
@@ -1393,69 +1493,90 @@ class _ActivityItem extends StatelessWidget {
     required this.subtitle,
     required this.time,
     required this.iconColor,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF1B5E20),
-                  ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[600],
-                  ),
+                child: Icon(
+                  icon,
+                  color: iconColor,
+                  size: 24,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1B5E20),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    time,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                  if (onTap != null) ...[
+                    const SizedBox(height: 4),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: Colors.grey,
+                    ),
+                  ],
+                ],
+              ),
+            ],
           ),
-          Text(
-            time,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[500],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

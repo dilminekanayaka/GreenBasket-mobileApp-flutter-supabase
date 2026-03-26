@@ -5,9 +5,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../home/role_router.dart';
 import 'signup_screen.dart';
 import 'forgot_password_screen.dart';
+import '../../services/cart_service.dart';
+import '../../services/wishlist_service.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? message;
+  const LoginScreen({super.key, this.message});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -35,6 +38,21 @@ class _LoginScreenState extends State<LoginScreen>
       curve: Curves.easeIn,
     );
     _animationController.forward();
+
+    // Show passed message if any
+    if (widget.message != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.message!),
+            backgroundColor: const Color(0xFF2E7D32),
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      });
+    }
   }
 
   @override
@@ -61,7 +79,23 @@ class _LoginScreenState extends State<LoginScreen>
         throw "Login failed";
       }
 
+      // Initialize user services
+      CartService().setUser(res.user!.id);
+      WishlistService().setUser(res.user!.id);
+
       if (!mounted) return;
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("Login successful! Welcome back."),
+          backgroundColor: const Color(0xFF2E7D32),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 2),
+        ),
+      );
 
       Navigator.pushReplacement(
         context,

@@ -79,6 +79,16 @@ class _SignupScreenState extends State<SignupScreen>
 
       if (!mounted) return;
 
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("Account created! Now select your role."),
+          backgroundColor: const Color(0xFF2E7D32),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(

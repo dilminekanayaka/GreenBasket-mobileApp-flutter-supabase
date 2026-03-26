@@ -5,7 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io';
 
 class AddProductPage extends StatefulWidget {
-  const AddProductPage({super.key});
+  final Map<String, dynamic>? product;
+  const AddProductPage({super.key, this.product});
 
   @override
   State<AddProductPage> createState() => _AddProductPageState();
@@ -62,6 +63,18 @@ class _AddProductPageState extends State<AddProductPage>
       curve: Curves.easeInOut,
     );
     _animationController.forward();
+
+    // Populate fields if editing
+    if (widget.product != null) {
+      _nameController.text = widget.product!['name'] ?? '';
+      _priceController.text = (widget.product!['price'] ?? '').toString();
+      _stockController.text = (widget.product!['stock'] ?? '').toString();
+      _descriptionController.text = widget.product!['description'] ?? '';
+      _selectedCategory = widget.product!['category'] ?? 'Vegetables';
+      _selectedUnit = widget.product!['unit'] ?? 'kg';
+      _isAvailable = widget.product!['is_available'] ?? true;
+      _isOrganic = widget.product!['is_organic'] ?? false;
+    }
   }
 
   @override
@@ -78,11 +91,10 @@ class _AddProductPageState extends State<AddProductPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F9F5),
-      body: SafeArea(
-        child: Column(
-          children: [
-            /// HEADER
-            _buildHeader(context),
+      body: Column(
+        children: [
+          /// HEADER
+          _buildHeader(context),
 
             /// FORM
             Expanded(
@@ -245,16 +257,16 @@ class _AddProductPageState extends State<AddProductPage>
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildHeader(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.fromLTRB(20, topPadding + 10, 20, 20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -297,9 +309,9 @@ class _AddProductPageState extends State<AddProductPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Add New Product',
-                  style: TextStyle(
+                Text(
+                  widget.product != null ? 'Edit Product' : 'Add New Product',
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -308,7 +320,7 @@ class _AddProductPageState extends State<AddProductPage>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'List your product for sale',
+                  widget.product != null ? 'Update your product details' : 'List your product for sale',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.white.withOpacity(0.9),
@@ -749,7 +761,7 @@ class _AddProductPageState extends State<AddProductPage>
               )
             : const Icon(Icons.add_circle_outline, size: 24),
         label: Text(
-          _isLoading ? 'Processing...' : 'Add Product',
+          _isLoading ? 'Processing...' : (widget.product != null ? 'Update Product' : 'Add Product'),
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -795,29 +807,48 @@ class _AddProductPageState extends State<AddProductPage>
             .getPublicUrl(filePath);
       }
 
-      // 2. Save Product Data
-      await Supabase.instance.client.from('products').insert({
-        'name': _nameController.text.trim(),
-        'description': _descriptionController.text.trim(),
-        'price': double.parse(_priceController.text.trim()),
-        'unit': _selectedUnit,
-        'category': _selectedCategory,
-        'stock': int.parse(_stockController.text.trim()),
-        'image_url': imageUrl,
-        'is_available': _isAvailable,
-        'is_organic': _isOrganic,
-        'farmer_id': user.id,
-      });
+      // 2. Save/Update Product Data
+      if (widget.product != null) {
+        // UPDATE EXISTING
+        await Supabase.instance.client
+            .from('products')
+            .update({
+              'name': _nameController.text.trim(),
+              'description': _descriptionController.text.trim(),
+              'price': double.parse(_priceController.text.trim()),
+              'unit': _selectedUnit,
+              'category': _selectedCategory,
+              'stock': int.parse(_stockController.text.trim()),
+              if (imageUrl != null) 'image_url': imageUrl,
+              'is_available': _isAvailable,
+              'is_organic': _isOrganic,
+            })
+            .eq('id', widget.product!['id']);
+      } else {
+        // INSERT NEW
+        await Supabase.instance.client.from('products').insert({
+          'name': _nameController.text.trim(),
+          'description': _descriptionController.text.trim(),
+          'price': double.parse(_priceController.text.trim()),
+          'unit': _selectedUnit,
+          'category': _selectedCategory,
+          'stock': int.parse(_stockController.text.trim()),
+          'image_url': imageUrl,
+          'is_available': _isAvailable,
+          'is_organic': _isOrganic,
+          'farmer_id': user.id,
+        });
+      }
 
       if (mounted) {
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
-              children: const [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 12),
-                Text('Product added successfully!'),
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Text(widget.product != null ? 'Product updated successfully!' : 'Product added successfully!'),
               ],
             ),
             backgroundColor: const Color(0xFF4CAF50),
